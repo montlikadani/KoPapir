@@ -1,27 +1,27 @@
 ﻿using System;
-using System.IO;
+using System.Linq;
 using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace StPap {
     public partial class Form1 : Form {
 
-        private readonly List<PeopleSelection> peopleSelections;
+        private readonly List<Game> games;
 
         public Form1() {
             InitializeComponent();
 
             string[] split = Properties.Resources.jatek.Split('\n');
 
-            peopleSelections = new List<PeopleSelection>(split.Length);
+            games = new List<Game>(split.Length);
 
             foreach (string one in split) {
-                foreach (string selection in one.Split('-')) {
-                    peopleSelections.Add(new PeopleSelection(int.Parse(selection)));
-                }
+                string[] arr = one.Split('-');
+
+                games.Add(new Game(int.Parse(arr[0]), int.Parse(arr[1])));
             }
 
-            tovabbiJatekok.Text = "További játékok száma: " + peopleSelections.Count / 2;
+            tovabbiJatekok.Text = "További játékok száma: " + games.Count;
             specsf.Text += "\n1 - papír\n2 - olló";
             Stats();
         }
@@ -33,26 +33,12 @@ namespace StPap {
                 return;
             }
 
-            PeopleSelection ps1 = new PeopleSelection(first);
-            PeopleSelection ps2 = new PeopleSelection(second);
+            Game game = new Game(first, second);
+            games.Add(game);
 
-            peopleSelections.Add(ps1);
-            peopleSelections.Add(ps2);
-
-            PeopleSelection winner = ps1.CalculateWinner(ps2);
-
-            SaveToFile();
-
-            tovabbiJatekok.Text = "További játékok száma: " + peopleSelections.Count / 2;
+            tovabbiJatekok.Text = "További játékok száma: " + games.Count;
             eredmeny.Show();
-            eredmeny.Text = "Eredmény kódolva (0-döntetlen, 1-első nyert, 2-második nyert):";
-
-            if (winner == null) {
-                eredmeny.Text += "0";
-            } else {
-                eredmeny.Text += winner == ps1 ? "1" : "2";
-            }
-
+            eredmeny.Text = $"Eredmény kódolva (0-döntetlen, 1-első nyert, 2-második nyert):{game.winner}";
             Stats();
         }
 
@@ -60,75 +46,24 @@ namespace StPap {
             return int.TryParse(input, out res) && res >= 0 && res < 3;
         }
 
-        private void SaveToFile() {
-            using (StreamWriter writer = File.CreateText("jatek.txt")) {
-                foreach (PeopleSelection one in peopleSelections) {
-                    writer.WriteLine($"{one.selection}-{2}");
-                }
-            }
-        }
-
         private void Stats() {
-            int dontetlenek = 0, elsoJatekos = 0, masodikJatekos = 0;
-
-            for (int y = 0; y < peopleSelections.Count; y++) {
-                PeopleSelection first = peopleSelections[y];
-                PeopleSelection winner = first.CalculateWinner(peopleSelections[y++]);
-
-                if (winner == null) {
-                    dontetlenek++;
-                } else if (winner == first) {
-                    elsoJatekos++;
-                } else {
-                    masodikJatekos++;
-                }
-            }
-
-            string dontetlen = string.Format("{0,30}", $"Döntetlenek: {dontetlenek} db");
-            string elso = string.Format("{0,36}", $"Első játékos nyert: {elsoJatekos} db");
-            string masodik = string.Format("{0,39}", $"Második játékos nyert: {masodikJatekos} db");
+            string dontetlen = string.Format("{0,29}", $"Döntetlenek: {games.Where(game => game.winner == 0).Count()} db");
+            string elso = string.Format("{0,36}", $"Első játékos nyert: {games.Where(game => game.winner == 1).Count()} db");
+            string masodik = string.Format("{0,39}", $"Második játékos nyert: {games.Where(game => game.winner == 2).Count()} db");
 
             statsText.Text = $"Statisztika\n{dontetlen}\n{elso}\n{masodik}";
         }
 
-        private class PeopleSelection {
+        private sealed class Game {
 
-            public readonly int selection;
+            public readonly int winner;
 
-            public PeopleSelection(int selection) {
-                this.selection = selection;
-            }
-
-            public PeopleSelection CalculateWinner(PeopleSelection another) {
-                if (selection == another.selection) {
-                    return null;
-                }
-
-                if (selection == 0) {
-                    return another.selection == 1 ? another : this;
-                }
-
-                if (another.selection == 0) {
-                    return selection == 1 ? this : another;
-                }
-
-                if (selection == 1) {
-                    return another.selection == 2 ? another : this;
-                }
-
-                if (another.selection == 1) {
-                    return selection == 2 ? this : another;
-                }
-
-                if (selection == 2) {
-                    return another.selection == 1 ? this : another;
-                }
-
-                if (another.selection == 2) {
-                    return selection == 1 ? another : this;
-                }
-
-                return null;
+            public Game(int firstPlayerDecision, int secondPlayerDecision) {
+                winner = new int[,] {
+                    { 0, 2, 1 },
+                    { 1, 0, 2 },
+                    { 2, 1, 0 }
+                }[firstPlayerDecision, secondPlayerDecision];
             }
         }
     }
